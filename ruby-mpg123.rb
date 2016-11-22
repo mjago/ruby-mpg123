@@ -1,4 +1,4 @@
-usr/bin/ruby
+#usr/bin/ruby
 #
 # Ruby control interface for mpg123
 # By Nicholas Humfrey
