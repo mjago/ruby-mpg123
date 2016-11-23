@@ -10,7 +10,8 @@ require "open3"
 
 class Mpg123
   attr_reader :version, :state, :info, :error
-  attr_reader :frame, :time
+  attr_reader :frame, :time, :frames_remaining
+  attr_reader :time_remaining
 
   STATE_STOPPED = 0
   STATE_PAUSED = 1
@@ -33,21 +34,21 @@ class Mpg123
     ## FIXME: check for errors
 
     # Read in the first line from mpg123
-    parse_line( readline_nonblock(1.0) )
+    parse_line(readline_nonblock(1.0))
     ## FIXME: ensure that @version is non-nil
 
     # Start the reader thread
-    @thread = Thread.new {
-      loop do
-        line = @pipe_out.gets
-        if line.nil?
-          $stderr.puts "Reached EOF when reading from mpg123 pipe."
-          raise("Reached EOF when reading from mpg123 pipe.")
-        else
-          parse_line(line)
-        end
-      end
-    }
+    #    @thread = Thread.new do
+    #      loop do
+    #        line = @pipe_out.gets
+    #        if line.nil?
+    #          $stderr.puts "Reached EOF when reading from mpg123 pipe."
+    #          raise("Reached EOF when reading from mpg123 pipe.")
+    #        else
+    #          parse_line(line)
+    #        end
+    #      end
+    #    end
   end
 
   def self.finalize(id)
@@ -55,14 +56,14 @@ class Mpg123
     puts "Mpg123.finalize(#{id})"
   end
 
-  def poll(timeout=0.1)
-    line = readline( timeout )
+  def poll(timeout=1.0)
+    line = readline_nonblock( timeout )
     return if line == nil
 
     begin
-      parse_line( line )
+      parse_line(line)
       # Check for more lines (without a timeout)
-      line = readline(0)
+      line = readline_nonblock(0)
     end until line == nil
   end
 
@@ -124,21 +125,16 @@ class Mpg123
 
   ## Parse a line sent to us from mpg123
   def parse_line(line)
-
     if (line =~ /^@F (\d+) (\d+) ([\d\.]+) ([\d\.]+)$/)
       @frame = $1.to_i
-      #FIXME: @frames_remaining = $2.to_i
+      @frames_remaining = $2.to_i
       @time = $3.to_f
-    #FIXME: @time_remaining = $4.to_f
+      @time_remaining = $4.to_f
     elsif (line =~ /^@S ([\d\.]+) (\d+) (\d+) (.+)/)
       @info['mpeg_version'] = $1
       @info['layer'] = $2
       @info['sample_rate'] = $3
       @info['mode'] = $4
-      ## FIXME: more available:
-      #@{$self}{qw(type layer samplerate mode mode_extension
-      #         bpf channels copyrighted error_protected
-      #         emphasis bitrate extension lsf)}=split /\s+/,$1;
       @state = STATE_PLAYING
     elsif (line =~ /^@I ID3:(.{30})(.{30})(.{30})(....)(.{30})(.*)$/)
       @info['title']=$1;   @info['artist']=$2;
