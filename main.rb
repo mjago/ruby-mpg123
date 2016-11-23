@@ -17,7 +17,6 @@ def print_status mpg
   puts "info: #{mpg.info}, "
 end
 
-p 'here'
 mpg = Mpg123.new
 sleep 0.2
 puts "state: #{get_state(mpg.state)}, version: #{mpg.version}"
